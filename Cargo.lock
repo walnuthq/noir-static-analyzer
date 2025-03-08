@@ -1268,6 +1268,7 @@ name = "noir_analyzer"
 version = "0.1.0"
 dependencies = [
  "noirc_frontend",
+ "thiserror",
 ]
 
 [[package]]

@@ -4,3 +4,4 @@
 //! It includes utilities for traversing the AST and applying various linting rules.
 
 pub mod analyzer;
+pub mod parser;
