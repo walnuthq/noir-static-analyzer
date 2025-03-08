@@ -10,3 +10,5 @@
 
 pub mod acir;
 pub mod ast;
+pub mod diagnostics;
+pub mod lints;
