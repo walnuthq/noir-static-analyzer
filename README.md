@@ -1,1 +1,1 @@
-# noir-static-analyser
+# noir-static-analyzer
