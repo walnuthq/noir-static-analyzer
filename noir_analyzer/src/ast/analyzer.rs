@@ -17,6 +17,8 @@
 
 use crate::ast::analyzer::AnalyzerError::GenericError;
 use crate::ast::ast_context::AstContext;
+use crate::diagnostics::lint::Lint;
+use crate::lints::lint_rule::LintRule;
 use noirc_frontend::ast::{
     ArrayLiteral, AsTraitPath, AssignStatement, AttributeTarget, BlockExpression, CallExpression,
     CastExpression, ConstrainExpression, ConstructorExpression, Expression, ForLoopStatement,
@@ -50,21 +52,31 @@ pub enum AnalyzerError {
 /// Implements an AST-based analyzer using the Noir visitor pattern.
 pub struct Analyzer<'ast> {
     pub(crate) context: Option<AstContext<'ast>>,
+    pub(crate) lints: Vec<Box<dyn LintRule>>,
 }
 
 impl<'ast> Analyzer<'ast> {
-    pub fn new() -> Self {
-        Self { context: None }
+    pub fn new(lints: &[Box<dyn LintRule>]) -> Self {
+        Self {
+            context: None,
+            lints: lints
+                .iter()
+                .map(|lint_rule| lint_rule.boxed_clone())
+                .collect(),
+        }
     }
 
-    pub fn analyze(&mut self, parsed_module: &'ast ParsedModule) -> Result<(), AnalyzerError> {
+    pub fn analyze(
+        &mut self,
+        parsed_module: &'ast ParsedModule,
+    ) -> Result<Vec<Lint>, AnalyzerError> {
         self.context = Some(AstContext::new(parsed_module));
 
         if !self.visit_parsed_module(parsed_module) {
             return Err(GenericError("AST traversal failed".to_string()));
         }
 
-        Ok(())
+        Ok(Vec::new())
     }
 }
 
@@ -558,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_can_be_created() {
-        let _analyzer = Analyzer::new();
+        let _analyzer = Analyzer::new(&[]);
     }
 
     // This test ensures that `Analyzer` implements `Visitor`
@@ -566,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_implements_visitor() {
-        let analyzer = Analyzer::new();
+        let analyzer = Analyzer::new(&[]);
         _assert_analyzer_is_visitor(&analyzer);
     }
 
@@ -580,7 +592,7 @@ mod tests {
 
         let root = Parser::parse_program_with_dummy_file(source_code).unwrap();
 
-        let mut analyzer = Analyzer::new();
+        let mut analyzer = Analyzer::new(&[]);
 
         assert!(
             analyzer.analyze(&root).is_ok(),
@@ -597,7 +609,7 @@ mod tests {
 
         let root = Parser::parse_program_with_dummy_file(source_code).unwrap();
 
-        let mut analyzer = Analyzer::new();
+        let mut analyzer = Analyzer::new(&[]);
 
         assert!(
             analyzer.analyze(&root).is_ok(),

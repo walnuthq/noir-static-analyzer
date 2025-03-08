@@ -5,4 +5,6 @@
 pub trait LintRule {
     /// Returns the unique name of the lint.
     fn name(&self) -> &'static str;
+
+    fn boxed_clone(&self) -> Box<dyn LintRule>;
 }
