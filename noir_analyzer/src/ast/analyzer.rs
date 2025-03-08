@@ -16,6 +16,7 @@
 //!
 
 use crate::ast::analyzer::AnalyzerError::GenericError;
+use crate::ast::ast_context::AstContext;
 use noirc_frontend::ast::{
     ArrayLiteral, AsTraitPath, AssignStatement, AttributeTarget, BlockExpression, CallExpression,
     CastExpression, ConstrainExpression, ConstructorExpression, Expression, ForLoopStatement,
@@ -32,7 +33,7 @@ use noirc_frontend::node_interner::{
     ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
     InternedUnresolvedTypeData, QuotedTypeId,
 };
-use noirc_frontend::parser::{Item, ParsedSubModule, ParserError};
+use noirc_frontend::parser::{Item, ItemKind, ParsedSubModule, ParserError};
 use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens};
 use noirc_frontend::{ParsedModule, QuotedType};
@@ -47,15 +48,18 @@ pub enum AnalyzerError {
 }
 
 /// Implements an AST-based analyzer using the Noir visitor pattern.
-#[derive(Default)]
-pub struct Analyzer {}
+pub struct Analyzer<'ast> {
+    pub(crate) context: Option<AstContext<'ast>>,
+}
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub fn new() -> Self {
-        Self {}
+        Self { context: None }
     }
 
-    pub fn analyze(&mut self, parsed_module: &ParsedModule) -> Result<(), AnalyzerError> {
+    pub fn analyze(&mut self, parsed_module: &'ast ParsedModule) -> Result<(), AnalyzerError> {
+        self.context = Some(AstContext::new(parsed_module));
+
         if !self.visit_parsed_module(parsed_module) {
             return Err(GenericError("AST traversal failed".to_string()));
         }
@@ -64,21 +68,49 @@ impl Analyzer {
     }
 }
 
-impl Visitor for Analyzer {
-    fn visit_parsed_module(&mut self, _: &ParsedModule) -> bool {
+impl Visitor for Analyzer<'_> {
+    fn visit_parsed_module(&mut self, parsed_module: &ParsedModule) -> bool {
+        for item in &parsed_module.items {
+            if !self.visit_item(item) {
+                return false;
+            }
+        }
+
         true
     }
 
-    fn visit_item(&mut self, _: &Item) -> bool {
-        todo!("Not implemented!")
+    fn visit_item(&mut self, item: &Item) -> bool {
+        match &item.kind {
+            ItemKind::Import(_, _) => todo!("Not implemented!"),
+            ItemKind::Function(function) => self.visit_noir_function(function, item.location.span),
+            ItemKind::Struct(_) => todo!("Not implemented!"),
+            ItemKind::Enum(_) => todo!("Not implemented!"),
+            ItemKind::Trait(_) => todo!("Not implemented!"),
+            ItemKind::TraitImpl(_) => todo!("Not implemented!"),
+            ItemKind::Impl(_) => todo!("Not implemented!"),
+            ItemKind::TypeAlias(_) => todo!("Not implemented!"),
+            ItemKind::Global(_, _) => todo!("Not implemented!"),
+            ItemKind::ModuleDecl(_) => todo!("Not implemented!"),
+            ItemKind::Submodules(_) => todo!("Not implemented!"),
+            ItemKind::InnerAttribute(_) => todo!("Not implemented!"),
+        }
     }
 
     fn visit_parsed_submodule(&mut self, _: &ParsedSubModule, _: Span) -> bool {
         todo!("Not implemented!")
     }
 
-    fn visit_noir_function(&mut self, _: &NoirFunction, _: Span) -> bool {
-        todo!("Not implemented!")
+    fn visit_noir_function(&mut self, function: &NoirFunction, _: Span) -> bool {
+        match &mut self.context {
+            None => panic!("Context not initialized!"), // TODO rethink this
+            Some(context) => {
+                context
+                    .function_definitions
+                    .insert(function.name().to_string(), function.def.clone());
+            }
+        }
+
+        true
     }
 
     fn visit_noir_trait_impl(&mut self, _: &NoirTraitImpl, _: Span) -> bool {
@@ -554,5 +586,26 @@ mod tests {
             analyzer.analyze(&root).is_ok(),
             "Analyzer should successfully parse a valid function."
         );
+    }
+
+    #[test]
+    fn test_analyzer_adds_function_definitions_to_context() {
+        let source_code = r#"
+            fn foo() {}
+            fn bar() {}
+            "#;
+
+        let root = Parser::parse_program_with_dummy_file(source_code).unwrap();
+
+        let mut analyzer = Analyzer::new();
+
+        assert!(
+            analyzer.analyze(&root).is_ok(),
+            "Analyzer should successfully parse a valid function."
+        );
+
+        let context = analyzer.context.expect("Analyzer should have the context");
+
+        assert_eq!(context.function_definitions.len(), 2);
     }
 }
