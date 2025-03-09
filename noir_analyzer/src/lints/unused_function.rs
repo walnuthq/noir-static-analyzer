@@ -44,6 +44,7 @@ mod tests {
     use crate::ast::analyzer::Analyzer;
     use crate::ast::parser::Parser;
     use crate::diagnostics::lint::{Lint, Severity};
+    use crate::diagnostics::reporter::Reporter;
     use crate::lints::lint_rule::LintRule;
     use crate::lints::unused_function::UnusedFunction;
     use noirc_frontend::hir::resolution::errors::Span;
@@ -164,5 +165,8 @@ mod tests {
                 location: Some(Span::from(151..154)),
             }
         );
+
+        let pretty_print = Reporter::pretty_report(&result); // TODO move to its own test case
+        println!("{}", pretty_print);
     }
 }

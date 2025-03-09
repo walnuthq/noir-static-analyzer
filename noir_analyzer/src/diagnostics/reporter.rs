@@ -14,8 +14,8 @@
 //! - Configurable reporting levels (e.g., only show errors).
 //! - Integration with file and line tracking for precise diagnostics.
 //!
-
 use crate::diagnostics::lint::{Lint, Severity};
+use std::fmt::Write;
 
 /// Handles reporting of lints detected during analysis.
 pub struct Reporter;
@@ -34,5 +34,21 @@ impl Reporter {
 
             println!("[{}] {}: {}", severity, lint.name, lint.description);
         }
+    }
+
+    pub fn pretty_report(lints: &[Lint]) -> String {
+        let mut output = String::new();
+
+        for lint in lints {
+            let severity_label = match lint.severity {
+                Severity::Error => "\x1b[1;31merror\x1b[0m", // Red + bold
+                Severity::Warning => "\x1b[1;33mwarning\x1b[0m", // Yellow + bold
+            };
+            writeln!(output, "{}: \x1b[1m{}\x1b[0m", severity_label, lint.name).unwrap();
+            writeln!(output, "   --> {}", lint.description).unwrap();
+            writeln!(output).unwrap(); // Blank line for spacing
+        }
+
+        output
     }
 }
