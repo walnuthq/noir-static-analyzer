@@ -115,4 +115,54 @@ mod tests {
 
         assert_eq!(result.len(), 0);
     }
+
+    #[test]
+    fn test_analyzer_with_lint_with_larger_example_works_correctly() {
+        let lint = Box::new(UnusedFunction);
+
+        let source_code = r#"
+            fn private_fn_1() { }
+            fn private_fn_2() { }
+            pub(crate) fn crate_fn_1() { }
+            pub(crate) fn crate_fn_2() { }
+            pub fn public_fn_1() { private_fn_1() }
+            pub fn public_fn_2() { public_fn_1() }
+            pub fn public_fn_3() { crate_fn_1() }
+            "#;
+
+        let root = Parser::parse_program_with_dummy_file(source_code).unwrap();
+
+        let mut analyzer = Analyzer::new(&[lint]);
+
+        let mut result = analyzer.analyze(&root).expect("Should have passed");
+
+        assert_eq!(result.len(), 2);
+
+        result.sort_by(|a, b| {
+            a.location
+                .unwrap()
+                .start()
+                .cmp(&b.location.unwrap().start())
+        });
+
+        assert_eq!(
+            result[0],
+            Lint {
+                name: "unused-function",
+                severity: Severity::Warning,
+                description: "Function 'private_fn_2' is unused".to_string(),
+                location: Some(Span::from(65..68)),
+            }
+        );
+
+        assert_eq!(
+            result[1],
+            Lint {
+                name: "unused-function",
+                severity: Severity::Warning,
+                description: "Function 'crate_fn_2' is unused".to_string(),
+                location: Some(Span::from(151..154)),
+            }
+        );
+    }
 }
