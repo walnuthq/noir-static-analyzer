@@ -21,14 +21,15 @@ use crate::diagnostics::lint::Lint;
 use crate::lints::lint_rule::LintRule;
 use noirc_frontend::ast::{
     ArrayLiteral, AsTraitPath, AssignStatement, AttributeTarget, BlockExpression, CallExpression,
-    CastExpression, ConstrainExpression, ConstructorExpression, Expression, ForLoopStatement,
-    ForRange, FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression,
-    InfixExpression, IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, Literal,
-    MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
+    CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
+    ForLoopStatement, ForRange, FunctionReturnType, GenericTypeArgs, Ident, IfExpression,
+    IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement,
+    Literal, MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
     NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
-    Pattern, PrefixExpression, Signedness, Statement, TraitBound, TraitImplItem, TraitImplItemKind,
-    TraitItem, TypeImpl, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeExpression, UnsafeExpression, UseTree, Visitor,
+    PathKind, Pattern, PrefixExpression, Signedness, Statement, StatementKind, TraitBound,
+    TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeExpression, UnsafeExpression, UseTree,
+    Visitor,
 };
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::node_interner::{
@@ -39,6 +40,7 @@ use noirc_frontend::parser::{Item, ItemKind, ParsedSubModule, ParserError};
 use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens};
 use noirc_frontend::{ParsedModule, QuotedType};
+use std::ops::Add;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -52,17 +54,19 @@ pub enum AnalyzerError {
 /// Implements an AST-based analyzer using the Noir visitor pattern.
 pub struct Analyzer<'ast> {
     pub(crate) context: Option<AstContext<'ast>>,
-    pub(crate) lints: Vec<Box<dyn LintRule>>,
+    pub(crate) lint_rules: Vec<Box<dyn LintRule>>,
+    stack: Vec<StackItem>,
 }
 
 impl<'ast> Analyzer<'ast> {
     pub fn new(lints: &[Box<dyn LintRule>]) -> Self {
         Self {
             context: None,
-            lints: lints
+            lint_rules: lints
                 .iter()
                 .map(|lint_rule| lint_rule.boxed_clone())
                 .collect(),
+            stack: Vec::new(),
         }
     }
 
@@ -76,35 +80,46 @@ impl<'ast> Analyzer<'ast> {
             return Err(GenericError("AST traversal failed".to_string()));
         }
 
-        Ok(Vec::new())
+        let mut lints = vec![];
+
+        match &self.context {
+            None => panic!("Context must be initialized!"),
+            Some(context) => {
+                for lint_rule in &self.lint_rules {
+                    lints.extend(lint_rule.lint(context));
+                }
+            }
+        }
+
+        Ok(lints)
     }
+}
+
+enum StackItem {
+    Module,
+    Identifiers(Vec<Ident>),
+    Function,
+    FunctionCall,
 }
 
 impl Visitor for Analyzer<'_> {
     fn visit_parsed_module(&mut self, parsed_module: &ParsedModule) -> bool {
+        self.stack.push(StackItem::Module);
         for item in &parsed_module.items {
             if !self.visit_item(item) {
                 return false;
             }
         }
 
+        self.stack.clear();
+
         true
     }
 
     fn visit_item(&mut self, item: &Item) -> bool {
         match &item.kind {
-            ItemKind::Import(_, _) => todo!("Not implemented!"),
             ItemKind::Function(function) => self.visit_noir_function(function, item.location.span),
-            ItemKind::Struct(_) => todo!("Not implemented!"),
-            ItemKind::Enum(_) => todo!("Not implemented!"),
-            ItemKind::Trait(_) => todo!("Not implemented!"),
-            ItemKind::TraitImpl(_) => todo!("Not implemented!"),
-            ItemKind::Impl(_) => todo!("Not implemented!"),
-            ItemKind::TypeAlias(_) => todo!("Not implemented!"),
-            ItemKind::Global(_, _) => todo!("Not implemented!"),
-            ItemKind::ModuleDecl(_) => todo!("Not implemented!"),
-            ItemKind::Submodules(_) => todo!("Not implemented!"),
-            ItemKind::InnerAttribute(_) => todo!("Not implemented!"),
+            _ => todo!("Not implemented!"),
         }
     }
 
@@ -113,15 +128,21 @@ impl Visitor for Analyzer<'_> {
     }
 
     fn visit_noir_function(&mut self, function: &NoirFunction, _: Span) -> bool {
+        let stack_size = self.stack.len();
+        self.stack.push(StackItem::Function);
         match &mut self.context {
             None => panic!("Context not initialized!"), // TODO rethink this
             Some(context) => {
                 context
                     .function_definitions
                     .insert(function.name().to_string(), function.def.clone());
+
+                for item in &function.def.body.statements {
+                    self.visit_statement(item);
+                }
             }
         }
-
+        self.stack.truncate(stack_size);
         true
     }
 
@@ -219,8 +240,45 @@ impl Visitor for Analyzer<'_> {
 
     fn visit_module_declaration(&mut self, _: &ModuleDeclaration, _: Span) {}
 
-    fn visit_expression(&mut self, _: &Expression) -> bool {
-        todo!("Not implemented!")
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        let stack_size = self.stack.len();
+        self.stack.push(StackItem::FunctionCall);
+        match &expression.kind {
+            ExpressionKind::Call(call) => {
+                if call.is_macro_call {
+                    todo!("Not implemented!")
+                }
+
+                match &call.func.kind {
+                    ExpressionKind::Variable(variable) => {
+                        self.visit_path(variable);
+                        if let Some(StackItem::Identifiers(identifiers)) = self.stack.last() {
+                            match &mut self.context {
+                                None => panic!("Context not initialized!"),
+                                Some(context) => {
+                                    let entry = context
+                                        .function_calls
+                                        .entry(
+                                            identifiers.iter().fold(String::new(), |acc, def| {
+                                                acc.add(&def.to_string())
+                                            }),
+                                        )
+                                        .or_insert(Vec::new());
+                                    entry.push(call.clone());
+                                }
+                            }
+                        } else {
+                            panic!("Should have identifiers in the call")
+                        }
+                    }
+                    _ => todo!("Not implemented!"),
+                }
+
+                self.stack.truncate(stack_size);
+                true
+            }
+            _ => todo!("Not implemented!"),
+        }
     }
 
     fn visit_literal(&mut self, _: &Literal, _: Span) -> bool {
@@ -344,8 +402,21 @@ impl Visitor for Analyzer<'_> {
         todo!("Not implemented!")
     }
 
-    fn visit_statement(&mut self, _: &Statement) -> bool {
-        todo!("Not implemented!")
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        match &statement.kind {
+            StatementKind::Let(_) => todo!("Not implemented!"),
+            StatementKind::Expression(expression) => self.visit_expression(expression),
+            StatementKind::Assign(_) => todo!("Not implemented!"),
+            StatementKind::For(_) => todo!("Not implemented!"),
+            StatementKind::Loop(_, _) => todo!("Not implemented!"),
+            StatementKind::While(_) => todo!("Not implemented!"),
+            StatementKind::Break => todo!("Not implemented!"),
+            StatementKind::Continue => todo!("Not implemented!"),
+            StatementKind::Comptime(_) => todo!("Not implemented!"),
+            StatementKind::Semi(_) => todo!("Not implemented!"),
+            StatementKind::Interned(_) => todo!("Not implemented!"),
+            StatementKind::Error => todo!("Not implemented!"),
+        }
     }
 
     fn visit_import(&mut self, _: &UseTree, _: Span, _visibility: ItemVisibility) -> bool {
@@ -492,27 +563,59 @@ impl Visitor for Analyzer<'_> {
         todo!("Not implemented!")
     }
 
-    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) {}
+    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_unspecified_type(&mut self, _: Span) {}
+    fn visit_unspecified_type(&mut self, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_quoted_type(&mut self, _: &QuotedType, _: Span) {}
+    fn visit_quoted_type(&mut self, _: &QuotedType, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_field_element_type(&mut self, _: Span) {}
+    fn visit_field_element_type(&mut self, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_integer_type(&mut self, _: Signedness, _: IntegerBitSize, _: Span) {}
+    fn visit_integer_type(&mut self, _: Signedness, _: IntegerBitSize, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_bool_type(&mut self, _: Span) {}
+    fn visit_bool_type(&mut self, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_unit_type(&mut self, _: Span) {}
+    fn visit_unit_type(&mut self, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {}
+    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_interned_type(&mut self, _: InternedUnresolvedTypeData, _: Span) {}
+    fn visit_interned_type(&mut self, _: InternedUnresolvedTypeData, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_error_type(&mut self, _: Span) {}
+    fn visit_error_type(&mut self, _: Span) {
+        todo!("Not implemented!")
+    }
 
-    fn visit_path(&mut self, _: &Path) {}
+    fn visit_path(&mut self, path: &Path) {
+        match &path.kind {
+            PathKind::Crate => todo!("Not implemented!"),
+            PathKind::Dep => todo!("Not implemented!"),
+            PathKind::Plain => self.stack.push(StackItem::Identifiers(
+                path.segments
+                    .iter()
+                    .map(|segment| segment.ident.clone())
+                    .collect(),
+            )),
+            PathKind::Super => todo!("Not implemented!"),
+        }
+    }
 
     fn visit_generic_type_args(&mut self, _: &GenericTypeArgs) -> bool {
         todo!("Not implemented!")
@@ -534,7 +637,9 @@ impl Visitor for Analyzer<'_> {
         todo!("Not implemented!")
     }
 
-    fn visit_identifier_pattern(&mut self, _: &Ident) {}
+    fn visit_identifier_pattern(&mut self, _: &Ident) {
+        todo!("Not implemented!")
+    }
 
     fn visit_mutable_pattern(&mut self, _: &Pattern, _: Span, _is_synthesized: bool) -> bool {
         todo!("Not implemented!")
@@ -548,7 +653,9 @@ impl Visitor for Analyzer<'_> {
         todo!("Not implemented!")
     }
 
-    fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
+    fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {
+        todo!("Not implemented!")
+    }
 
     fn visit_secondary_attribute(
         &mut self,
@@ -586,7 +693,6 @@ mod tests {
     fn test_analyzer_parses_valid_function() {
         let source_code = r#"
             fn main() {
-                let x = 42;
             }
             "#;
 

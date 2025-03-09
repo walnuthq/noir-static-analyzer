@@ -17,7 +17,7 @@
 use noirc_frontend::hir::resolution::errors::Span;
 
 /// Represents a static analysis lint detected in Noir code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lint {
     /// Unique identifier for the lint.
     pub name: &'static str,
@@ -30,7 +30,7 @@ pub struct Lint {
 }
 
 /// Defines the severity levels for lints.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Severity {
     /// Indicates a non-critical issue that may require attention.
     Warning,
