@@ -42,6 +42,7 @@ use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens};
 use noirc_frontend::{ParsedModule, QuotedType};
 use std::ops::Add;
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -50,6 +51,8 @@ pub enum AnalyzerError {
     ParsingError(Vec<ParserError>),
     #[error("AST traversal failed with errors: {0:?}")]
     GenericError(String),
+    #[error("Opening {0:?} with error: {1:?}")]
+    FileReadError(PathBuf, String),
 }
 
 /// Implements an AST-based analyzer using the Noir visitor pattern.

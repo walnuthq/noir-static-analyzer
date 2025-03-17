@@ -1,13 +1,16 @@
-use clap::Parser;
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
+use noir_analyzer::ast::analyzer::Analyzer;
+use noir_analyzer::ast::parser::Parser;
+use noir_analyzer::diagnostics::reporter::Reporter;
+use noir_analyzer::lints::lint_rule::LintRule;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
 /// CLI arguments for the Noir Analyzer.
-#[derive(Debug, Parser)]
+#[derive(Debug, clap::Parser)]
 #[command(
     name = "noir-analyzer",
     version = "0.1.0",
@@ -19,7 +22,6 @@ struct Cli {
     manifest_path: PathBuf,
 }
 
-/// Struct to deserialize `Nargo.toml`
 #[derive(Debug, Deserialize)]
 struct NargoToml {
     package: PackageConfig,
@@ -44,7 +46,7 @@ enum DependencyConfig {
 }
 
 fn main() {
-    let args = Cli::parse();
+    let args = <Cli as clap::Parser>::parse();
     println!("Using manifest path: {:?}", args.manifest_path);
 
     match parse_workspace(&args.manifest_path) {
@@ -53,6 +55,11 @@ fn main() {
             for package in &workspace.members {
                 println!("Package: {}", package.name);
                 println!("Entry point: {:?}", package.entry_path);
+
+                // Run linters on the entrypoint
+                if let Err(e) = run_linters(&package.entry_path) {
+                    eprintln!("Error running linters: {:?}", e);
+                }
             }
         }
         Err(e) => eprintln!("Error parsing Nargo.toml: {:?}", e),
@@ -64,7 +71,6 @@ fn parse_workspace(manifest_path: &PathBuf) -> Result<Workspace, Box<dyn std::er
     let content = fs::read_to_string(manifest_path)?;
     let parsed: NargoToml = toml::from_str(&content)?;
 
-    // Convert `package_type` to `PackageType` enum
     let package_type = match parsed.package.package_type.as_str() {
         "bin" => PackageType::Binary,
         "lib" => PackageType::Library,
@@ -72,7 +78,6 @@ fn parse_workspace(manifest_path: &PathBuf) -> Result<Workspace, Box<dyn std::er
         _ => return Err("Invalid package type in Nargo.toml".into()),
     };
 
-    // Construct the package
     let package = Package {
         name: parsed
             .package
@@ -87,11 +92,10 @@ fn parse_workspace(manifest_path: &PathBuf) -> Result<Workspace, Box<dyn std::er
             .unwrap()
             .join(parsed.package.entry.unwrap_or_else(|| "src/main.nr".into())),
         package_type,
-        dependencies: BTreeMap::new(), // TODO: Handle dependencies
+        dependencies: BTreeMap::new(),
         expression_width: None,
     };
 
-    // Construct the workspace with a single package
     let workspace = Workspace {
         root_dir: manifest_path.parent().unwrap().to_path_buf(),
         target_dir: None,
@@ -101,4 +105,28 @@ fn parse_workspace(manifest_path: &PathBuf) -> Result<Workspace, Box<dyn std::er
     };
 
     Ok(workspace)
+}
+
+/// Runs lint rules on the given entry point
+fn run_linters(entry_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    // Read the source file
+    let source = fs::read_to_string(entry_path)?;
+
+    let parsed_module = Parser::parse_program_with_dummy_file(&source)
+        .map_err(|_| "Failed to parse entry point")?;
+
+    // Collect all registered lints
+    let lints: Vec<Box<dyn LintRule>> = vec![Box::new(
+        noir_analyzer::lints::unused_function::UnusedFunction,
+    )];
+
+    let mut analyzer = Analyzer::new(&lints);
+    match analyzer.analyze(&parsed_module) {
+        Ok(lints) => {
+            println!("{}", Reporter::pretty_report(&lints));
+        }
+        Err(_) => {}
+    }
+
+    Ok(())
 }

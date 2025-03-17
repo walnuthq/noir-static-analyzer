@@ -1549,6 +1549,7 @@ dependencies = [
 name = "noir_analyzer"
 version = "0.1.0"
 dependencies = [
+ "fm",
  "noirc_frontend",
  "thiserror 2.0.12",
 ]
