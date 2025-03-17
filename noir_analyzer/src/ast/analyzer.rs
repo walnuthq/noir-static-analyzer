@@ -26,8 +26,8 @@ use noirc_frontend::ast::{
     IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement,
     Literal, MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
     NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
-    PathKind, Pattern, PrefixExpression, Signedness, Statement, StatementKind, TraitBound,
-    TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGenerics,
+    PathKind, Pattern, PrefixExpression, Statement, StatementKind, TraitBound, TraitImplItem,
+    TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeExpression, UnsafeExpression, UseTree,
     Visitor,
 };
@@ -37,6 +37,7 @@ use noirc_frontend::node_interner::{
     InternedUnresolvedTypeData, QuotedTypeId,
 };
 use noirc_frontend::parser::{Item, ItemKind, ParsedSubModule, ParserError};
+use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens};
 use noirc_frontend::{ParsedModule, QuotedType};
