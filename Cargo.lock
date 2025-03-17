@@ -612,6 +612,8 @@ dependencies = [
  "clap",
  "nargo",
  "noir_analyzer",
+ "serde",
+ "toml",
 ]
 
 [[package]]
