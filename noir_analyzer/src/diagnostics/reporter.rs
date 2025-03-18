@@ -6,32 +6,39 @@ use std::path::Path;
 pub struct Reporter;
 
 impl Reporter {
-    /// Pretty-prints lints in a structured format.
+    /// Pretty-prints lints in a structured and colorful format.
     pub fn pretty_report(lints: &[Lint], file_path: &Path) -> String {
         let mut output = String::new();
 
         for lint in lints {
             let severity_label = match lint.severity {
-                Severity::Error => "\x1b[1;31merror\x1b[0m", // Red + bold
-                Severity::Warning => "\x1b[1;33mwarning\x1b[0m", // Yellow + bold
+                Severity::Error => "\x1b[1;31merror\x1b[0m",   // Bright Red (bold)
+                Severity::Warning => "\x1b[1;33mwarning\x1b[0m", // Bright Yellow (bold)
             };
 
             // Print severity and lint name
-            writeln!(output, "{}: {}", severity_label, lint.description).unwrap();
+            writeln!(output, "{}: \x1b[1m{}\x1b[0m", severity_label, lint.description).unwrap();
 
             if let Some(span) = &lint.span {
                 let (line, column) = get_line_column(file_path, span.start());
 
-                // Print location information
-                writeln!(output, "  --> {}:{}:{}", file_path.display(), line, column).unwrap();
+                // Print file location with colored path and line/column
+                writeln!(
+                    output,
+                    "  --> \x1b[1;36m{}:\x1b[1;34m{}:{}\x1b[0m",
+                    file_path.display(),
+                    line,
+                    column
+                )
+                    .unwrap();
 
                 // Extract the source line (if available)
                 if let Some(source_line) = get_source_line(file_path, line) {
-                    writeln!(output, " | {}", source_line.trim()).unwrap();
+                    writeln!(output, " \x1b[1;37m| {}\x1b[0m", source_line.trim()).unwrap();
 
-                    // Generate caret under the issue
+                    // Generate caret under the issue with red color
                     let padding = column - 1; // Convert to 0-based index
-                    writeln!(output, " {}^", " ".repeat(padding)).unwrap();
+                    writeln!(output, " \x1b[1;37m{} \x1b[1;31m^\x1b[0m", " ".repeat(padding)).unwrap();
                 }
             }
 
