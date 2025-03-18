@@ -14,6 +14,7 @@
 //! - Integration with an error-reporting framework.
 //!
 
+use fm::FileId;
 use noirc_frontend::hir::resolution::errors::Span;
 
 /// Represents a static analysis lint detected in Noir code.
@@ -25,8 +26,10 @@ pub struct Lint {
     pub severity: Severity,
     /// Human-readable description of the issue.
     pub description: String,
-    /// Optional source code span where the lint applies.
-    pub location: Option<Span>,
+    /// Optional span where the lint applies.
+    pub span: Option<Span>,
+    /// The file where this lint occurs.
+    pub file_id: Option<FileId>,
 }
 
 /// Defines the severity levels for lints.

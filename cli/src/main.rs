@@ -108,6 +108,7 @@ fn parse_workspace(manifest_path: &PathBuf) -> Result<Workspace, Box<dyn std::er
 }
 
 /// Runs lint rules on the given entry point
+/// Runs lint rules on the given entry point
 fn run_linters(entry_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     // Read the source file
     let source = fs::read_to_string(entry_path)?;
@@ -123,9 +124,10 @@ fn run_linters(entry_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let mut analyzer = Analyzer::new(&lints);
     match analyzer.analyze(&parsed_module) {
         Ok(lints) => {
-            println!("{}", Reporter::pretty_report(&lints));
+            // Pass entry_path to pretty_report instead of FileManager
+            println!("{}", Reporter::pretty_report(&lints, entry_path));
         }
-        Err(_) => {}
+        Err(_) => println!("Ignore errors in PoC"),
     }
 
     Ok(())
