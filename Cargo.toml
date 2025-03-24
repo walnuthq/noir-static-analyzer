@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "noir_analyzer",
+    "cli",
+]
+resolver = "2"
+
+
+
+[workspace.dependencies]
+noirc_frontend = { git = "https://github.com/noir-lang/noir.git", package = "noirc_frontend" }
+fm = { git = "https://github.com/noir-lang/noir.git" }
+nargo = { git = "https://github.com/noir-lang/noir.git" }
