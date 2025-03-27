@@ -50,8 +50,21 @@ pub fn public_fn_1() { private_fn_1() }
 pub fn public_fn_2() { public_fn_1() }
 pub fn public_fn_3() { crate_fn_1() }
 ```
-The analyzer reports `private_fn_2` and `crate_fn_2` as unused.
+The analyzer reports:
+```text
+Using manifest path: "Nargo.toml"
+Workspace root: ""
+Package: hello
+Entry point: "src/main.nr"
+warning: Function 'private_fn_2' is unused
+  --> src/main.nr:2:19
+ | fn private_fn_2() {}
+                    ^
 
+warning: Function 'crate_fn_2' is unused
+  --> src/main.nr:4:28
+ | pub(crate) fn crate_fn_2() {}
+```
 ## Video Demonstration
 
 A short demo showcasing how the analyzer works is available:
