@@ -3,7 +3,7 @@
 > [!WARNING]
 > This project is under development and might contain bugs.
 
-Noir Static Analyzer is a **proof-of-concept** tool designed for **Noir**, a domain-specific language (DSL) for writing **zero-knowledge proofs**. Inspired by **Cargo Clippy** and **Cargo Check**, it provides static analysis for Noir programs, making it familiar to Rust developers. Noir's syntax closely resembles Rust, borrowing its **control flow, functions, and type system**.
+Noir Static Analyzer is a tool designed for **Noir**, a domain-specific language (DSL) for writing **zero-knowledge proofs**. Inspired by **Cargo Clippy** and **Cargo Check**, it provides static analysis for Noir programs, making it familiar to Rust developers. Noir's syntax closely resembles Rust, borrowing its **control flow, functions, and type system**.
 
 ## Features
 
