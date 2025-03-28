@@ -1,6 +1,9 @@
-# Noir Static Analyzer (PoC)
+# Noir Static Analyzer
 
-Noir Static Analyzer is a **proof-of-concept (PoC)** tool designed for **Noir**, a domain-specific language (DSL) for writing **zero-knowledge proofs**. Inspired by **Cargo Clippy** and **Cargo Check**, it provides static analysis for Noir programs, making it familiar to Rust developers. Noir's syntax closely resembles Rust, borrowing its **control flow, functions, and type system**.
+> [!WARNING]
+> This project is under development and might contain bugs.
+
+Noir Static Analyzer is a **proof-of-concept** tool designed for **Noir**, a domain-specific language (DSL) for writing **zero-knowledge proofs**. Inspired by **Cargo Clippy** and **Cargo Check**, it provides static analysis for Noir programs, making it familiar to Rust developers. Noir's syntax closely resembles Rust, borrowing its **control flow, functions, and type system**.
 
 ## Features
 
@@ -11,7 +14,7 @@ Noir Static Analyzer is a **proof-of-concept (PoC)** tool designed for **Noir**,
 
 ## Possible Future Enhancements
 
-While this PoC focuses on AST-based linting, analyzing **ACIR** could enable:
+Analyzing **ACIR** could enable:
 - **Detecting unnecessary constraints** in circuits.
 - **Optimizing witness assignments**.
 - **Identifying redundant gates** in the proof system.
@@ -112,14 +115,14 @@ https://github.com/user-attachments/assets/c4ede200-7949-4581-9d8b-c72e65acac9e
 - **ACIR** (potential future analysis): [ACIR repository](https://github.com/noir-lang/noir/tree/master/acvm-repo)
 
 ## Contribution
-This is an early PoC and welcomes feedback or contributions. Feel free to open issues or pull requests in the [GitHub repository](https://github.com/walnuthq/noir-static-analyzer).
+Contributions are welcome! Feel free to open issues or pull requests in the [GitHub repository](https://github.com/walnuthq/noir-static-analyzer).
 
 ## Appendix A: Lint Descriptions
 
 ### Unused or Redundant Code Lints
 
 1. **Unused Function**  
-   Detect functions that are never called anywhere. This was already implemented in the Noir analyzer PoC (e.g. flagging a helper function that isn’t referenced) and is similar to Rust’s `dead_code` lint.  
+   Detect functions that are never called anywhere. This is already implemented in the Noir Analyzer (e.g. flagging a helper function that isn’t referenced) and is similar to Rust’s `dead_code` lint.  
    Removing unused functions reduces code size and audit surface. If the function is intended for future use or an external call, developers can annotate it (once Noir supports an attribute similar to `#[allow(dead_code)]`).
 
 2. **Unused Variable/Value**  
