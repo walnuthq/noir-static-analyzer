@@ -71,6 +71,42 @@ A short demo showcasing how the analyzer works is available:
 
 [![Watch the Demo](docs/demo.mkv)](docs/demo.mkv)
 
+## Roadmap
+
+**Unused or Redundant Code Lints**
+- [x] Unsued Function
+- [ ] Unused Variable / Value
+- [ ] Unused Import
+- [ ] Duplicate or Redundant Constraint
+- [ ] Redundant Control Flow
+
+**ZK-Specific Lints**
+- [ ] Unconstrained Variable
+- [ ] Public Output Depending on Private Input
+- [ ] Missing Range Checks on Integers
+- [ ] Improper Use of Unconstrained Functions
+- [ ] Ineffective Constraints or Always-True Assertions
+
+**Style Lints**
+- [ ] Naming Conventions
+- [ ] Shadowing Variables
+- [ ] Overly Complex Function
+- [ ] Idiomatic Code Suggestions
+
+**Performance Lints**
+- [ ] Dead Stores and Unused Assignments
+- [ ] Inefficient Looping Constructs
+- [ ] Redundant Re-computation
+- [ ] Use of Non-ideal Operations
+- [ ] Large Constraints or Wide Integers Usage
+
+**Correctness Lints**
+- [ ] Unchecked Division or Modulus
+- [ ] Missing Constraints
+- [ ] Ignored Return Values
+- [ ] Inconsistent Type Usage or Overflow Risk
+- [ ] Constant or Unreachable Branch Conditions
+
 ## More Information
 - **Noir AST** (used for analysis): [noirc_frontend AST](https://github.com/noir-lang/noir/tree/master/compiler/noirc_frontend/src/ast)
 - **ACIR** (potential future analysis): [ACIR repository](https://github.com/noir-lang/noir/tree/master/acvm-repo)
@@ -78,10 +114,9 @@ A short demo showcasing how the analyzer works is available:
 ## Contribution
 This is an early PoC and welcomes feedback or contributions. Feel free to open issues or pull requests in the [GitHub repository](https://github.com/walnuthq/noir-static-analyzer).
 
-## Proposed Future Lints
+## Appendix A: Lint Descriptions
 
 ### Unused or Redundant Code Lints
-
 
 1. **Unused Function**  
    Detect functions that are never called anywhere. This was already implemented in the Noir analyzer PoC (e.g. flagging a helper function that isn’t referenced) and is similar to Rust’s `dead_code` lint.  
