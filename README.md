@@ -69,7 +69,7 @@ warning: Function 'crate_fn_2' is unused
 
 A short demo showcasing how the analyzer works is available:
 
-[![Watch the Demo](docs/demo.mkv)](docs/demo.mkv)
+https://github.com/user-attachments/assets/c4ede200-7949-4581-9d8b-c72e65acac9e
 
 ## Roadmap
 
