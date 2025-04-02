@@ -77,7 +77,7 @@ https://github.com/user-attachments/assets/c4ede200-7949-4581-9d8b-c72e65acac9e
 ## Roadmap
 
 **Unused or Redundant Code Lints**
-- [x] Unsued Function
+- [x] Unused Function
 - [ ] Unused Variable / Value
 - [ ] Unused Import
 - [ ] Duplicate or Redundant Constraint
